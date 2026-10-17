@@ -2,6 +2,8 @@
 
 **AI-Assisted Python Test Generation with Mutation-Based Verification**
 
+![RepoLens dashboard](docs/repolens-dashboard.png)
+
 RepoLens is a Python developer tool that uses AI to generate focused unit tests and evaluates whether those tests can detect a deliberate code mutation. It combines function analysis, candidate ranking, AI-generated `pytest` tests, and mutation-based verification in a CLI engine and Streamlit dashboard.
 
 The goal is simple: help developers move beyond generating tests to checking whether those tests catch at least one meaningful failure.
