@@ -314,37 +314,77 @@ def rank_functions(repo, functions, graph_path=None):
 # 3. GEMMA API
 # ---------------------------------------------------------
 
-def post_json(url, payload, headers=None, timeout=180):
-    request_headers = {"Content-Type": "application/json"}
 
+def post_json(url, payload, headers=None, timeout=180):
+    """POST JSON with retries for temporary API/server failures."""
+    import time
+
+    request_headers = {"Content-Type": "application/json"}
     if headers:
         request_headers.update(headers)
 
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers=request_headers,
-        method="POST",
-    )
+    retryable_statuses = {429, 500, 502, 503, 504}
+    max_attempts = 3
 
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            body = response.read().decode("utf-8", errors="replace")
+    for attempt in range(max_attempts):
+        request = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=request_headers,
+            method="POST",
+        )
 
-    except urllib.error.HTTPError as exc:
-        details = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(
-            f"Model API HTTP {exc.code}: {details[:2000]}"
-        ) from exc
+        try:
+            with urllib.request.urlopen(
+                request, timeout=timeout
+            ) as response:
+                body = response.read().decode(
+                    "utf-8", errors="replace"
+                )
+            break
 
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f"Cannot reach model API: {exc}") from exc
+        except urllib.error.HTTPError as exc:
+            details = exc.read().decode(
+                "utf-8", errors="replace"
+            )
+
+            if (
+                exc.code in retryable_statuses
+                and attempt < max_attempts - 1
+            ):
+                delay = 2 ** (attempt + 1)
+                print(
+                    f"[WARN] API HTTP {exc.code}; "
+                    f"retrying in {delay}s "
+                    f"({attempt + 2}/{max_attempts})..."
+                )
+                time.sleep(delay)
+                continue
+
+            raise RuntimeError(
+                f"Model API HTTP {exc.code}: {details[:2000]}"
+            ) from exc
+
+        except urllib.error.URLError as exc:
+            if attempt < max_attempts - 1:
+                delay = 2 ** (attempt + 1)
+                print(
+                    f"[WARN] API connection failed; "
+                    f"retrying in {delay}s..."
+                )
+                time.sleep(delay)
+                continue
+
+            raise RuntimeError(
+                f"Cannot reach model API: {exc}"
+            ) from exc
 
     try:
         return json.loads(body)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(f"Invalid API response: {body[:1000]}") from exc
-
+        raise RuntimeError(
+            f"Invalid API response: {body[:1000]}"
+        ) from exc
 
 def call_gemma(prompt):
     backend = os.environ.get("GEMMA_BACKEND", "gemini").lower()
