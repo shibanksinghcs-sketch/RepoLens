@@ -184,7 +184,7 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE).
 
 ## Author
 
-Created by **Shivank Singh**.
+Created by **Shibank Singh**.
 
 GitHub: [@shibanksinghcs-sketch](https://github.com/shibanksinghcs-sketch)
 
